@@ -1,0 +1,6 @@
+[submodule "deps/leveldb"]
+	path = deps/leveldb
+	url = https://github.com/google/leveldb.git
+[submodule "deps/cxxopts"]
+	path = deps/cxxopts
+	url = https://github.com/jarro2783/cxxopts.git
