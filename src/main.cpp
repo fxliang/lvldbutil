@@ -178,7 +178,7 @@ int main(int argc, char* argv[]){
       ("p,path", "path of database", valuestring())
       ("q,query", "query a pattern")
       ("d,delete", "delete a key with pattern, -P pat")
-      ("l,list", "list all user directories")
+      ("l,list", "list all user dicts")
       ("P,pattern", "pattern to query", valuestring())
       ("h,help", "print help");
     auto result = options.parse(argc, argv);

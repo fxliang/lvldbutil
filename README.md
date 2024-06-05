@@ -12,7 +12,7 @@ Usage:
 
   -d, --delete       delete a key with pattern, -P pat
 
-  -l, --list         list all user directories
+  -l, --list         list all user dicts
 
   -P, --pattern arg  pattern to query
 
