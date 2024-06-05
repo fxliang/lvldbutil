@@ -2,6 +2,9 @@
 #include <iostream>
 #include <filesystem>
 #include <regex>
+#include <string>
+#include <sstream>
+#include <vector>
 #include "cxxopts.hpp"
 
 namespace fs = std::filesystem;
@@ -61,9 +64,48 @@ inline unsigned int SetConsoleOutputCodePage(unsigned int codepage = 65001) {
 
 #endif /* _WIN32 */
 
+// for console text color in win32
+#ifdef _WIN32
+void SetConsoleColor(int color) {
+  HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+  SetConsoleTextAttribute(hConsole, color);
+}
+#define COLOR_GREEN FOREGROUND_GREEN
+#define COLOR_RED FOREGROUND_RED
+#define COLOR_BLUE FOREGROUND_BLUE
+#define MSG_WITH_COLOR(msg, color)                                             \
+  {                                                                            \
+    SetConsoleColor(color);                                                    \
+    std::cout << msg;                                                          \
+    SetConsoleColor(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);      \
+  }
+#else
+#define COLOR_GREEN "\033[32m"
+#define COLOR_RED "\033[31m"
+#define COLOR_RED "\033[34m"
+#define MSG_WITH_COLOR(msg, color) std::cout << color << msg << "\033[0m"
+#endif
+#define MSG_WITH_COLOR_ENDL(msg, color)                                        \
+  {                                                                            \
+    MSG_WITH_COLOR(msg, color);                                                \
+    std::cout << std::endl;                                                    \
+  }
+
 auto valuestring()
 { return std::make_shared<cxxopts::values::standard_value<std::string>>(); }
 
+
+std::vector<std::string> split(const std::string& str) {
+  std::istringstream iss(str);
+  std::vector<std::string> parts;
+  std::string part;
+  while (std::getline(iss, part, '\t')) {
+    parts.push_back(part);
+  }
+  return parts;
+}
+
+// 现在，parts[0]包含"part1"，parts[1]包含"part2"
 class LvlDBUtil {
   public:
     LvlDBUtil(std::string dbpath, bool create_if_missing = false) {
@@ -93,19 +135,28 @@ class LvlDBUtil {
       }
       leveldb::Iterator* it_ = db_->NewIterator(leveldb::ReadOptions());
       for(it_->SeekToFirst(); it_->Valid(); it_->Next()) {
-        if (pattern.empty())
-          std::cout << "Key: " << it_->key().ToString()
-            << ", Value: " << it_->value().ToString() << std::endl;
+        auto parts = split(it_->key().ToString());
+        auto printinfo = [this, parts, it_](){
+          MSG_WITH_COLOR(parts.at(0), COLOR_BLUE);
+          if(parts.size() == 2) {
+            std::cout << "\t";
+            MSG_WITH_COLOR(parts.at(1), COLOR_GREEN);
+          }
+          std::cout << "\t";
+          MSG_WITH_COLOR_ENDL(it_->value().ToString(), COLOR_RED);
+        };
+        if (pattern.empty()) {
+          printinfo();
+        }
         else if(to_delete) {
           if (std::regex_search(it_->key().ToString(), std::regex(pattern))) {
             db_->Delete(leveldb::WriteOptions(), it_->key().ToString());
-            std::cout << "Delete key: " << it_->key().ToString()
-              << ", value: " << it_->value().ToString() << std::endl;
+            std::cout << "deleted: ";
+            printinfo();
           } 
         } else {
           if (std::regex_search(it_->key().ToString(), std::regex(pattern)))
-            std::cout << "Key: " << it_->key().ToString()
-              << ", Value: " << it_->value().ToString() << std::endl;
+            printinfo();
         }
       }
       if (it_)
