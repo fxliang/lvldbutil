@@ -29,6 +29,7 @@ jobs:
 
       - name: Build lvldbutil
         run: |
+          .\msvc-latest.bat x64
           cmake -GNinja -Bbuild .
           cmake --build build
 
