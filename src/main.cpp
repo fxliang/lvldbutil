@@ -6,6 +6,19 @@
 
 namespace fs = std::filesystem;
 
+#ifdef _WIN32
+#include <windows.h>
+inline unsigned int SetConsoleOutputCodePage(unsigned int codepage = CP_UTF8) {
+  unsigned int cp = GetConsoleOutputCP();
+  SetConsoleOutputCP(codepage);
+  return cp;
+}
+#else
+inline unsigned int SetConsoleOutputCodePage(unsigned int codepage = 65001) {
+  return 0;
+}
+#endif /* _WIN32 */
+
 auto valuestring()
 { return std::make_shared<cxxopts::values::standard_value<std::string>>(); }
 
@@ -64,6 +77,7 @@ class LvlDBUtil {
 };
 
 int main(int argc, char* argv[]){
+	unsigned int code = SetConsoleOutputCodePage(65001);
   try {
     cxxopts::Options options("lvldbutil", "- a tool to play with user dict of rime");
     options.add_options()
@@ -110,8 +124,10 @@ int main(int argc, char* argv[]){
     }
   } catch (const std::exception &e) {
     std::cerr << "error parsing options: " << e.what() << std::endl;
+		SetConsoleOutputCodePage(code);
     return 1;
   }
 
+	SetConsoleOutputCodePage(code);
   return 0;
 }
