@@ -7,16 +7,58 @@
 namespace fs = std::filesystem;
 
 #ifdef _WIN32
+#define _UNICODE
+#define UNICODE
 #include <windows.h>
 inline unsigned int SetConsoleOutputCodePage(unsigned int codepage = CP_UTF8) {
   unsigned int cp = GetConsoleOutputCP();
   SetConsoleOutputCP(codepage);
   return cp;
 }
+inline std::wstring string_to_wstring(const std::string& str,
+                                      int code_page = CP_ACP) {
+  // support CP_ACP and CP_UTF8 only
+  if (code_page != 0 && code_page != CP_UTF8)
+    return L"";
+  // calc len
+  int len =
+      MultiByteToWideChar(code_page, 0, str.c_str(), (int)str.size(), NULL, 0);
+  if (len <= 0)
+    return L"";
+  std::wstring res;
+  TCHAR* buffer = new TCHAR[len + 1];
+  MultiByteToWideChar(code_page, 0, str.c_str(), (int)str.size(), buffer, len);
+  buffer[len] = '\0';
+  res.append(buffer);
+  delete[] buffer;
+  return res;
+}
+inline std::string wstring_to_string(const std::wstring& wstr,
+                                     int code_page = CP_ACP) {
+  // support CP_ACP and CP_UTF8 only
+  if (code_page != 0 && code_page != CP_UTF8)
+    return "";
+  int len = WideCharToMultiByte(code_page, 0, wstr.c_str(), (int)wstr.size(),
+                                NULL, 0, NULL, NULL);
+  if (len <= 0)
+    return "";
+  std::string res;
+  char* buffer = new char[len + 1];
+  WideCharToMultiByte(code_page, 0, wstr.c_str(), (int)wstr.size(), buffer, len,
+                      NULL, NULL);
+  buffer[len] = '\0';
+  res.append(buffer);
+  delete[] buffer;
+  return res;
+}
+#define ACP2UTF8(x)  wstring_to_string(string_to_wstring(x, CP_ACP), CP_UTF8)
+
 #else
 inline unsigned int SetConsoleOutputCodePage(unsigned int codepage = 65001) {
   return 0;
 }
+#define ACP2UTF8(x)  x
+
 #endif /* _WIN32 */
 
 auto valuestring()
@@ -76,6 +118,7 @@ class LvlDBUtil {
     std::string dbpath_;
 };
 
+
 int main(int argc, char* argv[]){
 	unsigned int code = SetConsoleOutputCodePage(65001);
   try {
@@ -95,6 +138,7 @@ int main(int argc, char* argv[]){
     std::string dbpath;
     if (result.count("path")) {
       dbpath = result["path"].as<std::string>();
+      dbpath = ACP2UTF8(dbpath);
       if (!fs::exists(dbpath) || dbpath.empty()) {
         std::cerr << "database path not exist: " << dbpath << std::endl;
         return 1;
@@ -103,6 +147,7 @@ int main(int argc, char* argv[]){
     std::string pattern;
     if (result.count("pattern")) {
       pattern = result["pattern"].as<std::string>();
+      pattern = ACP2UTF8(pattern);
     }
 
     LvlDBUtil dbutil (dbpath);
