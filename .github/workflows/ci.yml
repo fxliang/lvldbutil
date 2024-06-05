@@ -24,12 +24,11 @@ jobs:
       - name: Install Ninja
         run: choco install ninja
 
-      - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v2
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Build lvldbutil
         run: |
-          .\msvc-latest.bat x64
           cmake -GNinja -Bbuild .
           cmake --build build
 
