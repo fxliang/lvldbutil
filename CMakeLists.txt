@@ -14,6 +14,7 @@ option(USE_BUNDLED_LEVELDB "Use built-in version of leveldb" ${WIN32})
 # dependencies
 if (USE_BUNDLED_CXXOPTS)
   add_subdirectory(deps/cxxopts)
+  set(CXXOPTS_INCLUDE_DIR deps/cxxopts/include)
 else()
   find_package(cxxopts REQUIRED)
 endif()
@@ -50,6 +51,7 @@ target_link_libraries(${PROJECT_NAME}
 # add include directories
 target_include_directories(${PROJECT_NAME} PUBLIC
   ${LEVELDB_INCLUDE_DIR}
+  ${CXXOPTS_INCLUDE_DIR}
   )
 
 install(

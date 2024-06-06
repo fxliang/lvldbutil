@@ -5,7 +5,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
-#include "cxxopts.hpp"
+#include <cxxopts.hpp>
 
 namespace fs = std::filesystem;
 
@@ -82,7 +82,7 @@ void SetConsoleColor(int color) {
 #else
 #define COLOR_GREEN "\033[32m"
 #define COLOR_RED "\033[31m"
-#define COLOR_RED "\033[34m"
+#define COLOR_BLUE "\033[34m"
 #define MSG_WITH_COLOR(msg, color) std::cout << color << msg << "\033[0m"
 #endif
 #define MSG_WITH_COLOR_ENDL(msg, color)                                        \
