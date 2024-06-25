@@ -11,6 +11,11 @@ include(GNUInstallDirs)
 option(USE_BUNDLED_CXXOPTS "Use built-in version of cxxopts" ${WIN32})
 option(USE_BUNDLED_LEVELDB "Use built-in version of leveldb" ${WIN32})
 
+# Force MSVC to use static runtime libraries
+if(MSVC)
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 # dependencies
 if (USE_BUNDLED_CXXOPTS)
   add_subdirectory(deps/cxxopts)
@@ -19,10 +24,6 @@ else()
   find_package(cxxopts REQUIRED)
 endif()
 
-if(MSVC)
-  set(CMAKE_CXX_FLAGS_RELEASE "/MT")
-  set(CMAKE_CXX_FLAGS_DEBUG "/MTd")
-endif()
 if (USE_BUNDLED_LEVELDB)
   set(LEVELDB_BUILD_TESTS OFF CACHE BOOL "Build LevelDB's unit tests")
   set(LEVELDB_BUILD_BENCHMARKS OFF CACHE BOOL "Build LevelDB's benchmarks")
@@ -30,7 +31,7 @@ if (USE_BUNDLED_LEVELDB)
   set(LEVELDB_INCLUDE_DIR deps/leveldb/include)
   add_subdirectory(deps/leveldb)
 else()
-  find_package(PkgConfig REQUIRED)  # Add this line
+  find_package(PkgConfig REQUIRED)
   find_package(leveldb REQUIRED)
   pkg_search_module(LEVELDB REQUIRED leveldb)
 endif()
@@ -46,20 +47,21 @@ endif()
 if(MSVC)
   target_link_options(${PROJECT_NAME} PRIVATE "/LTCG")
 endif()
+
 # add link libraries
 target_link_libraries(${PROJECT_NAME}
   cxxopts::cxxopts
   ${LEVELDB_LIBRARIES}
   ${WIN32_LIBS}
-  )
+)
+
 # add include directories
 target_include_directories(${PROJECT_NAME} PUBLIC
   ${LEVELDB_INCLUDE_DIR}
   ${CXXOPTS_INCLUDE_DIR}
-  )
+)
 
 install(
   TARGETS ${PROJECT_NAME}
   DESTINATION ${CMAKE_INSTALL_BINDIR}
-
-  )
+)
