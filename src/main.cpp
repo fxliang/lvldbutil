@@ -135,6 +135,9 @@ class LvlDBUtil {
       leveldb::Iterator* it_ = db_->NewIterator(leveldb::ReadOptions());
       for(it_->SeekToFirst(); it_->Valid(); it_->Next()) {
         const auto& key = it_->key().ToString();
+        if (key.empty()
+            || std::regex_match(key, std::regex("^\001/(db_name|db_type|rime_version|tick|user_id).*$")))
+          continue;
         const auto& value = it_->value().ToString();
         auto parts = split(key);
         auto printinfo = [&](){
