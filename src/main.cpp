@@ -105,7 +105,6 @@ std::vector<std::string> split(const std::string& str) {
   return parts;
 }
 
-// 现在，parts[0]包含"part1"，parts[1]包含"part2"
 class LvlDBUtil {
   public:
     LvlDBUtil(std::string dbpath, bool create_if_missing = false) {
@@ -135,28 +134,27 @@ class LvlDBUtil {
       }
       leveldb::Iterator* it_ = db_->NewIterator(leveldb::ReadOptions());
       for(it_->SeekToFirst(); it_->Valid(); it_->Next()) {
-        auto parts = split(it_->key().ToString());
-        auto printinfo = [this, parts, it_](){
+        const auto& key = it_->key().ToString();
+        const auto& value = it_->value().ToString();
+        auto parts = split(key);
+        auto printinfo = [&](){
           MSG_WITH_COLOR(parts.at(0), COLOR_BLUE);
           if(parts.size() == 2) {
             std::cout << "\t";
             MSG_WITH_COLOR(parts.at(1), COLOR_GREEN);
           }
           std::cout << "\t";
-          MSG_WITH_COLOR_ENDL(it_->value().ToString(), COLOR_RED);
+          MSG_WITH_COLOR_ENDL(value, COLOR_RED);
         };
         if (pattern.empty()) {
           printinfo();
-        }
-        else if(to_delete) {
-          if (std::regex_search(it_->key().ToString(), std::regex(pattern))) {
-            db_->Delete(leveldb::WriteOptions(), it_->key().ToString());
+        } else if (std::regex_search(key, std::regex(pattern))
+            || std::regex_search(value, std::regex(pattern))) {
+          if (to_delete) {
+            db_->Delete(leveldb::WriteOptions(), key);
             std::cout << "deleted: ";
-            printinfo();
-          } 
-        } else {
-          if (std::regex_search(it_->key().ToString(), std::regex(pattern)))
-            printinfo();
+          }
+          printinfo();
         }
       }
       if (it_)
@@ -169,16 +167,14 @@ class LvlDBUtil {
     std::string dbpath_;
 };
 
-
 int main(int argc, char* argv[]){
 	unsigned int code = SetConsoleOutputCodePage(65001);
   try {
     cxxopts::Options options("lvldbutil", "- a tool to play with user dict of rime");
     options.add_options()
       ("p,path", "path of database", valuestring())
-      ("q,query", "query a pattern")
       ("d,delete", "delete a key with pattern, -P pat")
-      ("l,list", "list all user dicts")
+      ("l,list", "list user dicts, if pattern provided, list with pattern")
       ("P,pattern", "pattern to query", valuestring())
       ("h,help", "print help");
     auto result = options.parse(argc, argv);
@@ -204,19 +200,9 @@ int main(int argc, char* argv[]){
     LvlDBUtil dbutil (dbpath);
 
     if (result.count("list")) {
-      dbutil.Worker();
-      return 0;
-    } else if (result.count("query")) {
-      if (!pattern.empty()) {
-        dbutil.Worker(pattern);
-      } else {
-        dbutil.Worker();
-      }
-      return 0;
+      dbutil.Worker(pattern);
     } else if (result.count("delete")) {
-      if (!pattern.empty()) {
-        dbutil.Worker(pattern, true);
-      }
+      dbutil.Worker(pattern, true);
     }
   } catch (const std::exception &e) {
     std::cerr << "error parsing options: " << e.what() << std::endl;
