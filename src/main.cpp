@@ -1,11 +1,11 @@
-#include <leveldb/db.h>
-#include <iostream>
-#include <filesystem>
-#include <regex>
-#include <string>
-#include <sstream>
-#include <vector>
 #include <cxxopts.hpp>
+#include <filesystem>
+#include <iostream>
+#include <leveldb/db.h>
+#include <regex>
+#include <sstream>
+#include <string>
+#include <vector>
 
 namespace fs = std::filesystem;
 
@@ -18,7 +18,7 @@ inline unsigned int SetConsoleOutputCodePage(unsigned int codepage = CP_UTF8) {
   SetConsoleOutputCP(codepage);
   return cp;
 }
-inline std::wstring string_to_wstring(const std::string& str,
+inline std::wstring string_to_wstring(const std::string &str,
                                       int code_page = CP_ACP) {
   // support CP_ACP and CP_UTF8 only
   if (code_page != 0 && code_page != CP_UTF8)
@@ -29,14 +29,14 @@ inline std::wstring string_to_wstring(const std::string& str,
   if (len <= 0)
     return L"";
   std::wstring res;
-  TCHAR* buffer = new TCHAR[len + 1];
+  TCHAR *buffer = new TCHAR[len + 1];
   MultiByteToWideChar(code_page, 0, str.c_str(), (int)str.size(), buffer, len);
   buffer[len] = '\0';
   res.append(buffer);
   delete[] buffer;
   return res;
 }
-inline std::string wstring_to_string(const std::wstring& wstr,
+inline std::string wstring_to_string(const std::wstring &wstr,
                                      int code_page = CP_ACP) {
   // support CP_ACP and CP_UTF8 only
   if (code_page != 0 && code_page != CP_UTF8)
@@ -46,7 +46,7 @@ inline std::string wstring_to_string(const std::wstring& wstr,
   if (len <= 0)
     return "";
   std::string res;
-  char* buffer = new char[len + 1];
+  char *buffer = new char[len + 1];
   WideCharToMultiByte(code_page, 0, wstr.c_str(), (int)wstr.size(), buffer, len,
                       NULL, NULL);
   buffer[len] = '\0';
@@ -54,13 +54,13 @@ inline std::string wstring_to_string(const std::wstring& wstr,
   delete[] buffer;
   return res;
 }
-#define ACP2UTF8(x)  wstring_to_string(string_to_wstring(x, CP_ACP), CP_UTF8)
+#define ACP2UTF8(x) wstring_to_string(string_to_wstring(x, CP_ACP), CP_UTF8)
 
 #else
 inline unsigned int SetConsoleOutputCodePage(unsigned int codepage = 65001) {
   return 0;
 }
-#define ACP2UTF8(x)  x
+#define ACP2UTF8(x) x
 
 #endif /* _WIN32 */
 
@@ -91,11 +91,11 @@ void SetConsoleColor(int color) {
     std::cout << std::endl;                                                    \
   }
 
-auto valuestring()
-{ return std::make_shared<cxxopts::values::standard_value<std::string>>(); }
+auto valuestring() {
+  return std::make_shared<cxxopts::values::standard_value<std::string>>();
+}
 
-
-std::vector<std::string> split(const std::string& str) {
+std::vector<std::string> split(const std::string &str) {
   std::istringstream iss(str);
   std::vector<std::string> parts;
   std::string part;
@@ -106,80 +106,84 @@ std::vector<std::string> split(const std::string& str) {
 }
 
 class LvlDBUtil {
-  public:
-    LvlDBUtil(std::string dbpath, bool create_if_missing = false) {
-      dbpath_ = expand_user(dbpath).string();
-      options_.create_if_missing = create_if_missing;
-    }
-    ~LvlDBUtil(){}
-    static fs::path expand_user(fs::path path) {
-      if (!path.empty() && path.string()[0] == '~') {
-        assert(path.string().size() == 1 || path.string()[1] == '/');  // or a check that the ~ isn't part of a filename
-        char const* home = std::getenv("HOME");
-        if (!home) { // In case HOME is not set
-          home = std::getenv("USERPROFILE"); // For Windows
-        }
-        if (home) {
-          path.replace_filename(home + path.string().substr(1));
-        }
+public:
+  LvlDBUtil(std::string dbpath, bool create_if_missing = false) {
+    dbpath_ = expand_user(dbpath).string();
+    options_.create_if_missing = create_if_missing;
+  }
+  ~LvlDBUtil() {}
+  static fs::path expand_user(fs::path path) {
+    if (!path.empty() && path.string()[0] == '~') {
+      assert(path.string().size() == 1 ||
+             path.string()[1] ==
+                 '/'); // or a check that the ~ isn't part of a filename
+      char const *home = std::getenv("HOME");
+      if (!home) {                         // In case HOME is not set
+        home = std::getenv("USERPROFILE"); // For Windows
       }
-      return path;
+      if (home) {
+        path.replace_filename(home + path.string().substr(1));
+      }
     }
+    return path;
+  }
 
-    void Worker(const std::string& pattern = "", bool to_delete=false) {
-      leveldb::DB* db_;
-      leveldb::Status status = leveldb::DB::Open(options_, dbpath_, &db_);
-      if (!status.ok()) {
-        throw std::runtime_error("Unable to open database: " + dbpath_ );
-      }
-      leveldb::Iterator* it_ = db_->NewIterator(leveldb::ReadOptions());
-      for(it_->SeekToFirst(); it_->Valid(); it_->Next()) {
-        const auto& key = it_->key().ToString();
-        if (key.empty()
-            || std::regex_match(key, std::regex("^\001/(db_name|db_type|rime_version|tick|user_id).*$")))
-          continue;
-        const auto& value = it_->value().ToString();
-        auto parts = split(key);
-        auto printinfo = [&](){
-          MSG_WITH_COLOR(parts.at(0), COLOR_BLUE);
-          if(parts.size() == 2) {
-            std::cout << "\t";
-            MSG_WITH_COLOR(parts.at(1), COLOR_GREEN);
-          }
-          std::cout << "\t";
-          MSG_WITH_COLOR_ENDL(value, COLOR_RED);
-        };
-        if (pattern.empty()) {
-          printinfo();
-        } else if (std::regex_search(key, std::regex(pattern))
-            || std::regex_search(value, std::regex(pattern))) {
-          if (to_delete) {
-            db_->Delete(leveldb::WriteOptions(), key);
-            std::cout << "deleted: ";
-          }
-          printinfo();
-        }
-      }
-      if (it_)
-        delete it_;
-      if (db_)
-        delete db_;
+  void Worker(const std::string &pattern = "", bool to_delete = false) {
+    leveldb::DB *db_;
+    leveldb::Status status = leveldb::DB::Open(options_, dbpath_, &db_);
+    if (!status.ok()) {
+      throw std::runtime_error("Unable to open database: " + dbpath_);
     }
-  private:
-    leveldb::Options options_;
-    std::string dbpath_;
+    leveldb::Iterator *it_ = db_->NewIterator(leveldb::ReadOptions());
+    for (it_->SeekToFirst(); it_->Valid(); it_->Next()) {
+      const auto &key = it_->key().ToString();
+      if (key.empty() ||
+          std::regex_match(
+              key, std::regex(
+                       "^\001/(db_name|db_type|rime_version|tick|user_id).*$")))
+        continue;
+      const auto &value = it_->value().ToString();
+      auto parts = split(key);
+      auto printinfo = [&]() {
+        MSG_WITH_COLOR(parts.at(0), COLOR_BLUE);
+        if (parts.size() == 2) {
+          std::cout << "\t";
+          MSG_WITH_COLOR(parts.at(1), COLOR_GREEN);
+        }
+        std::cout << "\t";
+        MSG_WITH_COLOR_ENDL(value, COLOR_RED);
+      };
+      if (pattern.empty()) {
+        printinfo();
+      } else if (std::regex_search(key, std::regex(pattern)) ||
+                 std::regex_search(value, std::regex(pattern))) {
+        if (to_delete) {
+          db_->Delete(leveldb::WriteOptions(), key);
+          std::cout << "deleted: ";
+        }
+        printinfo();
+      }
+    }
+    if (it_)
+      delete it_;
+    if (db_)
+      delete db_;
+  }
+
+private:
+  leveldb::Options options_;
+  std::string dbpath_;
 };
 
-int main(int argc, char* argv[]){
-	unsigned int code = SetConsoleOutputCodePage(65001);
+int main(int argc, char *argv[]) {
+  unsigned int code = SetConsoleOutputCodePage(65001);
   try {
-    cxxopts::Options options("lvldbutil", "- a tool to play with user dict of rime");
-    options.add_options()
-      ("p,path", "path of database", valuestring())
-      ("d,delete", "delete a key with pattern, -P pat")
-      ("l,list", "list user dicts, if pattern provided, list with pattern")
-      ("P,pattern", "pattern to query", valuestring())
-      ("h,help", "print help");
+    cxxopts::Options options("lvldbutil",
+                             "- a tool to play with user dict of rime");
+    options.add_options()("p,path", "path of database", valuestring())(
+        "d,delete", "delete a key with pattern, -P pat")(
+        "l,list", "list user dicts, if pattern provided, list with pattern")(
+        "P,pattern", "pattern to query", valuestring())("h,help", "print help");
     auto result = options.parse(argc, argv);
     if (argc == 1 || result.count("help")) {
       std::cout << options.help() << std::endl;
@@ -200,7 +204,7 @@ int main(int argc, char* argv[]){
       pattern = ACP2UTF8(pattern);
     }
 
-    LvlDBUtil dbutil (dbpath);
+    LvlDBUtil dbutil(dbpath);
 
     if (result.count("list")) {
       dbutil.Worker(pattern);
@@ -209,10 +213,10 @@ int main(int argc, char* argv[]){
     }
   } catch (const std::exception &e) {
     std::cerr << "error parsing options: " << e.what() << std::endl;
-		SetConsoleOutputCodePage(code);
+    SetConsoleOutputCodePage(code);
     return 1;
   }
 
-	SetConsoleOutputCodePage(code);
+  SetConsoleOutputCodePage(code);
   return 0;
 }
