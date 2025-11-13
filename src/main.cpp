@@ -74,10 +74,6 @@ inline unsigned int SetConsoleOutputCodePage(unsigned int cp = 65001) {
     std::cout << std::endl;                                                    \
   }
 
-auto valuestring() {
-  return std::make_shared<cxxopts::values::standard_value<string>>();
-}
-
 vector<string> split(const string &str) {
   std::istringstream iss(str);
   vector<string> parts;
@@ -179,16 +175,13 @@ public:
   ~LvlDBUtil() {}
   static fs::path expand_user(fs::path path) {
     if (!path.empty() && path.string()[0] == '~') {
-      assert(path.string().size() == 1 ||
-             path.string()[1] ==
-                 '/'); // or a check that the ~ isn't part of a filename
+      assert(path.string().size() == 1 || path.string()[1] == '/');
+      // or a check that the ~ isn't part of a filename
       char const *home = std::getenv("HOME");
-      if (!home) {                         // In case HOME is not set
-        home = std::getenv("USERPROFILE"); // For Windows
-      }
-      if (home) {
+      if (!home)
+        home = std::getenv("USERPROFILE");
+      if (home)
         path.replace_filename(home + path.string().substr(1));
-      }
     }
     return path;
   }
@@ -271,26 +264,35 @@ private:
 
 int main(int argc, char *argv[]) {
   unsigned int code = SetConsoleOutputCodePage(65001);
+#define EXIT(cp)                                                               \
+  {                                                                            \
+    SetConsoleOutputCodePage(code);                                            \
+    return code;                                                               \
+  }
+  const auto print_error = [](const std::string &error_msg) {
+    std::cerr << "error: " << ACP2UTF8(error_msg) << std::endl;
+  };
+  const auto valuestring = []() {
+    return std::make_shared<cxxopts::values::standard_value<string>>();
+  };
   try {
     cxxopts::Options options("lvldbutil",
                              "- a tool to play with user dict of rime");
     options.add_options()("p,path", "path of database", valuestring())(
         "d,delete", "delete a key with pattern, -P pat")(
-        "l,list", "list user dicts, if pattern provided, list with pattern")(
         "P,pattern", "pattern to query", valuestring())("h,help", "print help");
     auto result = options.parse(argc, argv);
     if (argc == 1 || result.count("help")) {
       std::cout << options.help() << std::endl;
-      SetConsoleOutputCodePage(code);
-      return 0;
+      EXIT(0);
     }
     string dbpath;
     if (result.count("path")) {
+      // dbpath acp only
       dbpath = result["path"].as<string>();
-      dbpath = ACP2UTF8(dbpath);
       if (!fs::exists(dbpath) || dbpath.empty()) {
-        std::cerr << "database path not exist: " << dbpath << std::endl;
-        return 1;
+        print_error("database path not exist: " + dbpath);
+        EXIT(1);
       }
     }
     string pattern;
@@ -298,19 +300,11 @@ int main(int argc, char *argv[]) {
       pattern = result["pattern"].as<string>();
       pattern = ACP2UTF8(pattern);
     }
-
     LvlDBUtil dbutil(dbpath);
-
-    if (result.count("list")) {
-      dbutil.Worker(pattern);
-    } else if (result.count("delete")) {
-      dbutil.Worker(pattern, true);
-    }
+    dbutil.Worker(pattern, result.count("delete"));
   } catch (const std::exception &e) {
-    std::cerr << "error parsing options: " << e.what() << std::endl;
-    SetConsoleOutputCodePage(code);
-    return 1;
+    print_error("error parsing options: " + string(e.what()));
+    EXIT(1);
   }
-  SetConsoleOutputCodePage(code);
-  return 0;
+  EXIT(0);
 }
