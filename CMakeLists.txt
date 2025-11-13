@@ -51,6 +51,7 @@ set(lvldbutil ${DIR_SRC})
 add_executable(${PROJECT_NAME} ${lvldbutil})
 
 if (WIN32)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE UNICODE _UNICODE)
   set(WIN32_LIBS shlwapi user32 Rpcrt4)
 endif()
 
