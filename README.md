@@ -8,11 +8,7 @@ Usage:
 
   -p, --path arg     path of database
 
-  -q, --query        query a pattern
-
   -d, --delete       delete a key with pattern, -P pat
-
-  -l, --list         list all user dicts
 
   -P, --pattern arg  pattern to query
 
